@@ -1,26 +1,26 @@
-# Task 2 Runtime
+# ReImagine Runtime
 
-This directory isolates the Task 2 pipeline from the rest of the repository so
+This directory isolates the stylize pipeline from the rest of the repository so
 you can run the stylize and img-to-img flow without touching the shared
 backend or the other model services.
 
 ## Included services
 
 - `task2-kafka`: Kafka broker for queued generation traffic
-- `backend/`: Task 2-only FastAPI backend exposing `/imgtoimg`, `/imgtoimg/batch`, `/stylize`, `/stylize/batch`, and `/health`
+- `backend/`: FastAPI backend exposing `/imgtoimg`, `/imgtoimg/batch`, `/stylize`, `/stylize/batch`, and `/health`
 - `task2-kafka-worker`: Kafka consumer that batches queued generation jobs before calling FLUX
-- `qwen_service/`: Task 2-only Qwen prompt service exposing `/prompt` and `/health`
+- `qwen_service/`: Qwen prompt service exposing `/prompt` and `/health`
 - `task2-flux`: prebuilt FLUX Kontext image exposing `/imgtoimg` and `/imgtoimg/batch`
 - `docker-compose.task2.yml`: isolated Docker Compose stack
-- `config.yml`: selects whether Task 2 uses `hardcoded` prompts or `qwen`
+- `config.yml`: selects whether the runtime uses `hardcoded` prompts or `qwen`
 
 ## Ports
 
-- Task 2 backend: `8100`
-- Task 2 UI: `3001`
-- Task 2 Qwen service: `7878`
-- Task 2 FLUX service: `8106`
-- Task 2 Kafka broker: `9092`
+- Backend: `8100`
+- UI: `3001`
+- Qwen service: `7878`
+- FLUX service: `8106`
+- Kafka broker: `9092`
 
 These are intentionally different from the main repo defaults to avoid
 conflicts with any existing local services.
@@ -43,17 +43,17 @@ Use the IP from the same network as your other device, then open
 
 ## FLUX service image
 
-Task 2 uses the prebuilt Docker image:
+This stack uses the prebuilt Docker image:
 
 `harshvarandani2006/fluxquantservices:latest`
 
 That image already contains `/app/flux1-kontext-dev-Q8_0.gguf`, exposes port
 `8006`, and starts with `python flux_service.py`. The compose file publishes it
-on host port `8106` and the Task 2 backend calls it at `http://task2-flux:8006`.
+on host port `8106` and the backend calls it at `http://task2-flux:8006`.
 
 ## Prompt Strategy Config
 
-Task 2 reads [config.yml](/home/raid/team67-submission/re-imagine/config.yml).
+This runtime reads [config.yml](config.yml).
 
 Use hardcoded prompts:
 
@@ -102,7 +102,7 @@ docker compose -f docker-compose.task2.yml up --build
 
 ## Kafka queue flow
 
-Task 2 now uses Kafka to smooth traffic spikes and batch queued generation work:
+This runtime uses Kafka to smooth traffic spikes and batch queued generation work:
 
 - The backend resolves prompts, publishes generation jobs to Kafka, and waits for the matching result using a per-request id.
 - The Kafka worker consumes queued jobs, groups them for a short window, and sends them to FLUX through `/imgtoimg/batch`.
@@ -135,7 +135,7 @@ available through separate endpoints.
 
 ## Allowed image formats
 
-The Task 2 UI only accepts source and reference uploads in these formats:
+The UI only accepts source and reference uploads in these formats:
 
 - `PNG`
 - `JPG`
