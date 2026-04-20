@@ -1,5 +1,15 @@
 # ReImagine Runtime
 
+## Team
+
+- Arpita Abhijit Deshmukh (`B23CM1007`)
+- Vishal Kishore (`B23CS1078`)
+
+## Demo Links
+
+- Demo folder: <https://drive.google.com/drive/folders/1hcu_RG_8TgWMy3ZEQLnKsznWGyoPROj6>
+- Live demo: <http://34.180.19.166/>
+
 This directory isolates the stylize pipeline from the rest of the repository so
 you can run the stylize and img-to-img flow without touching the shared
 backend or the other model services.
