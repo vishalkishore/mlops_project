@@ -172,3 +172,27 @@ curl -X POST http://localhost:8100/stylize/batch \
     {\"image\":\"${IMG_B}\",\"style\":\"VOGUE\"}
   ]"
 ```
+
+## CI/CD
+
+This repo now includes GitHub Actions workflows in `.github/workflows/`:
+
+- `ci.yml` runs on pushes to `main`/`master` and on pull requests.
+- `cd.yml` publishes container images to GitHub Container Registry (`ghcr.io`) on pushes to `main`, on version tags like `v1.0.0`, or when triggered manually.
+
+The CI workflow currently validates the parts of the stack that fit reliably on
+standard GitHub-hosted runners:
+
+- builds the Vite UI
+- compiles Python sources in `backend/`, `qwen_service/`, and `flux_features/`
+- validates `docker-compose.task2.yml`
+- smoke-builds the `backend` and `ui` Docker images
+
+The CD workflow publishes:
+
+- `ghcr.io/<owner>/task2-backend`
+- `ghcr.io/<owner>/task2-ui`
+
+The GPU-heavy FLUX image is intentionally excluded from CI/CD because it is much
+slower and depends on a CUDA-oriented build/runtime path that is not a great fit
+for the default GitHub-hosted runner environment.
