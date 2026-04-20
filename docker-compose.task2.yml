@@ -1,0 +1,130 @@
+services:
+  task2-kafka:
+    image: apache/kafka:4.2.0
+    container_name: task2-kafka
+    hostname: task2-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://task2-kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@task2-kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_MESSAGE_MAX_BYTES: 10485760
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 10485760
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 10485760
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    ports:
+      - "0.0.0.0:9092:9092"
+
+  task2-ui:
+    build:
+      context: ./ui
+    container_name: task2-ui
+    depends_on:
+      task2-backend:
+        condition: service_started
+    ports:
+      - "0.0.0.0:3001:3000"
+
+  task2-qwen:
+    build:
+      context: ./qwen_service
+    container_name: task2-qwen
+    environment:
+      QWEN_MODEL_ID: AdobeTeam67/Submission
+      QWEN_PROCESSOR_ID: AdobeTeam67/Submission
+      QWEN_MODEL_SUBFOLDER: Qwen
+      QWEN_PROCESSOR_SUBFOLDER: Qwen
+      QWEN_DEVICE_MAP: cpu
+      HF_TOKEN: ${HF_TOKEN:-}
+    ports:
+      - "0.0.0.0:7878:7878"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7878/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  task2-flux:
+    build:
+      context: ./flux_features
+    container_name: task2-flux
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-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}
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-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}
+      FLUX_CPU_OFFLOAD: ${FLUX_CPU_OFFLOAD:-true}
+    ports:
+      - "0.0.0.0:8106:8006"
+    volumes:
+      - task2_flux_hf_cache:/app/.cache/huggingface
+      - task2_flux_models:/models
+    gpus: all
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8006/docs')"]
+      start_period: 30m
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  task2-backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: task2-backend
+    depends_on:
+      task2-kafka:
+        condition: service_started
+      task2-qwen:
+        condition: service_started
+      task2-flux:
+        condition: service_healthy
+    environment:
+      FLUX_FEATURES_URL: http://task2-flux:8006
+      OUTPUT_IMGTOIMG_DIR: /app/output/imgtoimg
+      TASK2_CONFIG_PATH: /app/config.yml
+      QWEN_SERVICE_URL: http://task2-qwen:7878
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: task2-kafka:9092
+      KAFKA_REQUEST_TOPIC: task2-generation-requests
+      KAFKA_RESULT_TOPIC: task2-generation-results
+      KAFKA_MAX_MESSAGE_BYTES: 10485760
+    ports:
+      - "0.0.0.0:8100:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  task2-kafka-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: task2-kafka-worker
+    command: ["python", "kafka_worker.py"]
+    depends_on:
+      task2-kafka:
+        condition: service_started
+      task2-flux:
+        condition: service_healthy
+    environment:
+      FLUX_FEATURES_URL: http://task2-flux:8006
+      KAFKA_BOOTSTRAP_SERVERS: task2-kafka:9092
+      KAFKA_REQUEST_TOPIC: task2-generation-requests
+      KAFKA_RESULT_TOPIC: task2-generation-results
+      KAFKA_GROUP_ID: task2-generation-workers
+      KAFKA_MAX_MESSAGE_BYTES: 10485760
+      WORKER_BATCH_SIZE: "4"
+      WORKER_BATCH_WAIT_MS: "250"
+
+volumes:
+  task2_flux_hf_cache:
+  task2_flux_models:

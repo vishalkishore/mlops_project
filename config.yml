@@ -1,0 +1,7 @@
+task2:
+  prompt_strategy: hardcoded
+  fallback_strategy: hardcoded
+  qwen:
+    weights_repo: AdobeTeam67/Submission
+    subfolder: Qwen
+    service_url: http://task2-qwen:7878
